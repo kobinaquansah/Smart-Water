@@ -2,7 +2,7 @@ rm(list=ls())
 require(rio)
 require(pracma)
 require(tseries) 
-df<-import("C://Users//kobin//Documents//Hourly Flowrate.csv");
+df<-import("C://Hourly Flowrate.csv");
 df1<-df$`Hourly flowrate`
 df2<-head(df1,100)
 plot(df1[1:10000], xlim=c(0,24*100), type='l')
