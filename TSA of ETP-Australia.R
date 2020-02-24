@@ -6,6 +6,7 @@ output: html_document
 # Importation and Data Cleaning -----------------------------------------------
 rm(list=ls())
 require(rio);require(pracma);require(tseries)
+#Correct the file directory to match location on your PC
 df<-import("C://Users//kobin//Documents//Hourly Flowrate In.csv");
 dfflowin<-import("C://Users//kobin//Documents//Hourly Flowrate In.csv")
 #Find Missing Data with a function that returns Number of NA values and their respective columns
