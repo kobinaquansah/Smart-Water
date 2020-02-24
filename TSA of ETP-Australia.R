@@ -1,83 +1,323 @@
+---
+title: "Time Series"
+output: html_document
+---
+```{r}
+# Importation and Data Cleaning -----------------------------------------------
 rm(list=ls())
-require(rio)
-require(pracma)
-require(tseries) 
-df<-import("C://Hourly Flowrate.csv");
-df1<-df$`Hourly flowrate`
-df2<-head(df1,100)
-plot(df1[1:10000], xlim=c(0,24*100), type='l')
-points(seq(1:100)*24-7, df1[seq(1:100)*24-7], col='red', )
-df1[is.na(df1)]=0
-df1[10000:10057]
-df1
+require(rio);require(pracma);require(tseries)
+df<-import("C://Users//kobin//Documents//Hourly Flowrate In.csv");
+dfflowin<-import("C://Users//kobin//Documents//Hourly Flowrate In.csv")
+#Find Missing Data with a function that returns Number of NA values and their respective columns
+df[c(1:10,12,19:23),12]<-NA
+na.find<-function(f){
+  nacolsum<-vector()
+  for (i in 1:ncol(df)){
+  nacolsum[i]<-sum(is.na(df[,i]))
+  }
+na_col<-which(nacolsum>0)
+na_sum<-nacolsum[nacolsum>0]
+na_col<<-na_col
+na_sum<<-na_sum
+na_summary<-cbind(na_col, na_sum)
+na_summary_list<-list(na_col, na_sum)
+print(na_summary)
+}
+na.find(df)
+
+#Produce probability distributioin matrix for proceeding and preceding Markov Conditions. 
+#bins=vector of unique values rounded to the nearest decimal place
+#u_val=sorted unique values
+#u_length=number of unique values
+#na_adjusted=complete vector of values in time series 
+ts_column=12
+precision=2
+pmat.create<-function(ts_column){
+  bins<-unique(round(na.remove(df[,ts_column]),precision))
+  u_val<-sort(bins)
+  u_length<-length(bins)
+  u_mat<-matrix(data=0, nrow=u_length+1, ncol=u_length+1)
+  u_mat[,1]<-c(100,u_val); u_mat[1,]<-c(100,u_val)
+  u_length<<-u_length
+  u_val<<-u_val
+  u_mat<<-u_mat
+}
+pmat.create(ts_column = ts_column)
+
+
+#Set u_mat[1,1] to 100 to prevent that value from being selected as the whole of row 1 and column 1 will only be used for comparison while the rest of distribution matrix will be filled with number of movements from one condition to the next. Row 1 will correspond to initial condition and Row 2 will correspond to final condition.
+pmat.fill<-function(ts_column, precision){
+  na_adjusted<-na.exclude(df)
+  for(i in 2:(length(df[,ts_column])-1)){
+  #Create row and column comparators
+  row_comp<<-u_mat[1,]
+  col_comp<<-u_mat[,1]
+  #Determine current (MKA) and proceeding(MKB) values for all non-NA values in time series
+  MKA<-round(df[i,ts_column],precision)
+  MKB<-round(df[i-1,ts_column],precision)
+  #Create tally of all movements from condition MKA to MKB
+  u_mat[which(row_comp==MKA),which(col_comp==MKB)]<-u_mat[which(row_comp==MKA),which(col_comp==MKB)]+1
+  }
+  sum(u_mat[2:204,2:204])
+  pos_na<-which(is.na(df[,ts_column]))
+  useable_row_checker<-apply(u_mat[,2:ncol(u_mat)], MARGIN=1, FUN=sum)
+  useable_row_pos<-which(useable_row_checker>0)+1
+  u_matindex1<-2:nrow(u_mat)
+  u_matindex2<-u_matindex1
+  useable_fraction<-sum(!u_mat[u_matindex1,u_matindex2]==0)/(length((u_matindex1))^2)
+  #L2G
+  u_mat<<-u_mat
+  pos_na<<-pos_na
+  useable_row_pos<<-useable_row_pos
+  paste(round(useable_fraction*100,2),'% of the prob matrix is non_zero and will be used for bootstrapping')
+}
+pmat.fill(ts_column=ts_column, precision=precision)
+#Determine proportion of cells filled in Distribution Matrix
+#pos_na=position of NA values in time series
+#useable_row_checker = sum of values in MKA rows (2:end), since row 1 is the MKB identifier
+#useable_row_pos = positions of all rows containing at least one non-zero value, offset of 1 to deal with useable_row_checker which begins at vector position 2 but indexes at vector position 1
+```
+#Bootstrap Using a Markov Chain. MK0 represents the previous condition, MK1 represents the condition before MK0. If MK1 is also 0, MK1 is assigned to the position before its preceding assignment. Only when an MK0 or MK1 value is fulfilled will the probability matrix be accessed to sample a potential value for the current condition. When all unfilled MK1's are fulfilled, the while loop is broken to allow for the inital MK0 to be used for bootstrapping. If either MK0 or MK1 are fulfilled, but there are no further values to sample from, sampling is performed from the condition with the least square distance
+
+```{r}
+#1.row_comp=row comparator signifying which rows in distribution matrix can contribute to       Markov Chain. i.e. contain vaules greater than 0 in their sampling vectors
+
+#2.initial vector=complete row vector from distribution matrix corresponding to selected MK0     or MK1 value
+
+#3.sampling_positions=positions in initial vector which contain values > 0
+
+#4.sampling_vec=vector of potential sampling distribution which will be used to calculate       probability distribution (prob_vec)
+
+#5.prob_vec= vector of probabilities from distribution matrix
+
+#6.sampled=predicted value of next position in distribution matrix corresponding to a value     in the row_comparator
+df<-as.matrix(df[,c(11,12)])
+ts_column=2
+x<-df
+a<-vector()
+
+if(length(pos_na>0)){
+tentative_mean<-mean(x[,ts_column][!is.na(x[,ts_column])])
+condition1<-if(which(is.na(x[pos_na[1],ts_column]))==1){
+  x[1,ts_column]<-tentative_mean
+  iterant<<-2
+  iterant<<-iterant}else{
+    x[1,ts_column]<-x[1,ts_column]
+    iterant<<-1
+    iterant<<-iterant
+  }
+i=iterant-1
+sampling_positions<-vector()
+MK1<-NA
+MK0<-round(x[pos_na[i]+1,ts_column],precision)
+jmax<-vector()
+v=0
+  while(is.na(MK0)&is.na(MK1)){
+    i=i+1
+    while (is.na(MK0)){
+      j=0
+      while(is.na(MK1)){
+        v=v+1
+        j=1+j
+        MK1=round(x[pos_na[i]+j,ts_column],precision)
+        jmax[v]<-j
+        }
+      initial_vector<-u_mat[which(row_comp==MK1),2:u_length+1]
+      sampling_positions<-which(initial_vector>0)
+      while((!sum(sampling_positions)>0)==(TRUE)){
+        SE<-abs(MK1-row_comp[useable_row_pos])
+        LSE_pos<-which(SE==min(SE))
+        MK1<-row_comp[useable_row_pos][LSE_pos]
+        initial_vector<-u_mat[which(row_comp==MK1),2:u_length+1]
+        sampling_positions<-which(initial_vector>0)
+        sampling_vec<-initial_vector[sampling_positions]
+        prob_vec<-sampling_vec/sum(sampling_vec)
+        ifelse((length(sampling_positions)==1),
+        sampled<-sample(sampling_positions, size=1),
+        sampled<-sample(sampling_positions, size=1, prob=prob_vec))
+        x[pos_na[i]+j-1,ts_column]<-row_comp[sampled]
+        x[pos_na[i]+j-1,ts_column]<-x[pos_na[i]+j-1,ts_column]
+        x<<-x
+        }
+      initial_vector<-u_mat[which(row_comp==MK1),2:u_length+1]
+      sampling_positions<-which(initial_vector>0)
+      sampling_vec<-initial_vector[sampling_positions]
+      prob_vec<-sampling_vec/sum(sampling_vec)
+      ifelse((length(sampling_positions)==1),
+          sampled<-sample(sampling_positions, size=1),
+          sampled<-sample(sampling_positions, size=1, prob=prob_vec))
+      x[pos_na[i]+j-1,ts_column]<-row_comp[sampled]
+      MK0<-round(x[pos_na[i],ts_column],precision)
+      MK1<-NA
+      }
+    pos_na
+    i=i+max(jmax)
+    MK0<-round(x[pos_na[i],ts_column],precision)
+    MK1<-NA
+    jmax<-vector()
+    v=0
+    i=i-1
+    if (pos_na[i]==max(pos_na)){
+      break
+      }
+    }
+  }
+
+
+df<-x
+
+plot(df[,ts_column], xlim=c(0,100));
+```
+
+```{r}
+#Create dataframe containing only useful columns
+df1<-df[,2]
+#Plot complete Time Series for Easy Visualization and check for Addditive or Multiplicative Characteristics
+plot(df1, type='l')
 # Exploratory Data Analysis -----------------------------------------------
-adf.test(df1)
-#Autocorrelation Function and Partial Autocorrelation Function
+#1.Determine whether autocorrelation or Partial Autocorrelation can be found in Time Series
+#2.Determine autocorrelations and partial autocorrelations above 70th percentile.
+#3.Determine poisitions of autocorrelated and partially autocorrelated values above 70th percentile to find their lagtimes
+
 autocorr<-acf(df1,lag.max = 100);
 pautocorr<-pacf(df1, lag.max = 100)
-autoqua<-quantile(autocorr$acf[24:100], prob=.7)
-pos1<-which(autocorr$acf>autoqua)
-autocorr$acf[24+pos1]
-pautoqua<-quantile(pautocorr$acf[24:100], prob=.7)
-pos1<-which(pautocorr$acf>pautoqua)
-pautocorr$acf[24+pos1]
-training<-10000
-testing<-20000
+predgap=24
+prob=0.5
+  
+corrsummary<-function(){
+  autoqua<<-quantile(abs(autocorr$acf[predgap:100]), prob=prob)
+  pautoqua<<-quantile(abs(pautocorr$acf[predgap:100]), prob=prob)
+  pos1<<-which(autocorr$acf>autoqua)
+  pos2<<-which(pautocorr$acf>pautoqua)
+  acfmat<<-cbind(pos1,autocorr$acf[autocorr$acf>autoqua])
+  acfmat <<- acfmat[order(acfmat[,2], decreasing=TRUE),]
+  acfmatpos <<- acfmat[acfmat>predgap]
+  ppacfmatpos<<- acfmatpos
+  pacfmat<<-cbind(pos2,pautocorr$acf[pautocorr$acf>pautoqua])
+  pacfmat <<- pacfmat[order(pacfmat[,2], decreasing=TRUE),]
+  pacfmatpos <<- pacfmat[pacfmat>predgap]
+}
+corrsummary()
+training<-65000
+testing<-90000
+```
+
+<!--TRAINING MODEL-->
+<!--This training model seeks to determine number of lag times required to generate the best prediction. As autocorrelation is already ranked, cumulative iteration of lagtime will be performed in descending order. Theta parameters will then be determined for the number of iterations that results in the lowest MSE-->
+
+```{r}
 # Alt1 AutoRegression -----------------------------------------------------
-lagsar<-c(25,26,27,28,29,30,31,32)
-laggedar<-matrix(ncol=length(lagsar), nrow =training)
-for (i in 1:length(lagsar)){
+#1.Use autoregressive method to determine theta theta parameters
+#2.Iterate through the lagtimes cumulatively descending from the most autocorrelated lagtime
+#3.Find value of i which corresponds to lowest MSE
+MSE<-vector()
+
+for(i in 1:length(acfmatpos)){
+  lagsar<-head(acfmatpos,i)
+  laggedar<-matrix(ncol=length(lagsar), nrow =training)
+  for (i in 1:length(lagsar)){
+    laggedar[1:training,i]<-df1[lagsar[i]:(training + lagsar[i]-1)]
+  }
+  #Ensure that the target value ranges position shifts as maximum lagtime shifts to maintain a time difference of predgap hours between prediction and event
+  
+  y1<-df1[(predgap+max(lagsar[1:i])):(training+(predgap+max(lagsar[1:i]))-1)]
+  x<-cbind(rep(1,training), laggedar)
+  #Perform linear regression analytically
+  th<-inv(t(x)%*%x)%*%(t(x)%*%y1)
+  h1<-x%*%th
+  plot(y1, type='l', xlim=c(1000,5000), xlab='reftime(h)', ylab='Hourly Flowrate (kL/s)');points(h1, type='l', col='red')
+  #Measure MSE per iteration
+  MSE[i]<-mean(abs(y1-h1))
+}
+min_MSE<-which(MSE==min(MSE))
+plot(MSE, type='l', xlab='iteration number', ylab='MSE')
+paste('MSEmin occurs at cumulative iteration number',min_MSE)
+
+laggedar<-matrix(ncol=min_MSE, nrow =training)
+for (i in 1:min_MSE){
   laggedar[1:training,i]<-df1[lagsar[i]:(training + lagsar[i]-1)]
 }
-dim(laggedar)
-y1<-df1[57:(training+56)]
+y1<-df1[(predgap+max(lagsar[min_MSE])):(training+(predgap+max(lagsar[min_MSE]))-1)]
 x<-cbind(rep(1,training), laggedar)
 th<-inv(t(x)%*%x)%*%(t(x)%*%y1)
 h1<-x%*%th
-plot(y1, type='l', xlim=c(1000,4000))
-points(h1, type='l', col='red')
-MSE=mean((h1-y1)^2)
-MSE
-# Moving Average ----------------------------------------------------------
-lagsma<-c(25,30,31,32,33)
-laggedma<-matrix(ncol=length(lagsma), nrow =training)
-for (i in 1:length(lagsma)){
-  laggedma[1:training,i]<-df1[lagsma[i]:(training+lagsma[i]-1)]-df1[1:(training)]
+```
+<!--TESTING MODEL-->
+<!--This model will make use of the generated theta parameters along with the number of cumulative iterations to generate a hypothesis function. MSE and Mean Relative Error will be determined-->
+
+```{r}
+laggedar<-matrix(nrow=(testing-training), ncol=min_MSE)
+for (i in 1:min_MSE){
+  laggedar[1:(testing-training),i]<-df1[(training+lagsar[i]):(testing + lagsar[i]-1)]
 }
-laggedma
-y1<-as.matrix(df1[(57):(training+57-1)])
-x<-cbind(rep(1,training),laggedma)
-th<-inv(t(x)%*%x)%*%(t(x)%*%y1)
-h1<-x%*%th
-plot(y1, type='l', xlim=c(1000,4000))
-points(h1, type='l', col='red')
-MSE=mean((h1-y1)^2)
-MSE
-# ARMA --------------------------------------------------------------------
-x<-cbind(rep(1,training), laggedar[,c(1,2,3)], laggedma[,c(1,2,3)])
-th<-rep(1, dim(x)[2])         #Define theta parameters equal to number of expected features (here features are x)
-h1=x%*%th            #Cross multiply matrix by theta parameters to determine hypothesis function
-v=length(x) #define variable to contain number of readings taken
-costfn=(1/2*v)*sum((h1-y1)^2) #calculate cost function
-costfna<-vector() #define variable to contain costfunction calculation per iteration
-lr=0.001  #define learning rate
-ab<-vector()  #define variable to contain boolean to change or maintain learning rate
-for (i in 1:2000){
-  # Update Rule -------------------------------------------------------------
-  dcfs<-function(uv){
-    (1/v)*(sum((h1-y1)*uv))
+x2<-cbind(rep(1,(testing-training)), laggedar)
+y2<-df1[(predgap+max(lagsar[1:i])+training):(testing+(predgap+max(lagsar[1:i]))-1)]
+h2<-x2%*%th
+MSE<-mean(abs(h2-y2))
+plot(y2, type='l', xlim=c(4000,5200), xlab='reftime(h)', ylab='Hourly Flowrate (kL/s)');points(h2, type='l', col='red')
+#Find Mean Relative Error
+MAPE<-(abs(h2-y2)/y2)
+
+MAPE_inf<-is.infinite(MAPE)
+#Test to confirm that all infinite values originated from a zero-denominator
+sum_test_result<-sum(MAPE_inf==TRUE)==sum(y2[MAPE_inf]==0)
+#Posiional Test
+#C1-positions of the following coincidence -- !h2==0 and y2==0
+#C2-positions of the following coincidence -- MAPE==0 and y2==0
+C1<-which(!h2==0&y2==0)
+C2<-which(MAPE==Inf&y2==0)
+positional_result<-(sum(C1==C2))==sum(MAPE_inf)
+#Calculate non-zero MAPE
+MAPE_non_zero<-mean(MAPE[!MAPE_inf])
+which(MAPE==max(MAPE[!MAPE_inf]))
+paste('positional test result', positional_result)
+paste('sum test result', sum_test_result)
+paste('non-zero MAPE is', signif(MAPE_non_zero*100,2), '%')
+```
+
+```{r}
+#th<-inv(t(x)%*%x)%*%(t(x)%*%y)
+#h<-x%*%th
+
+MPEfun<-function(a,b){
+  MPE<<-(abs(a-b)/b)
+}
+MPEfun(h2,y2)
+MPE_inf<-is.infinite(MPE)
+MPE_non_zero<-mean(MPE[!MPE_inf])
+paste('non-zero MAPE is', signif(MPE_non_zero*100,2), '%')
+#Test to confirm that all infinite values originated from a zero-denominator
+sum_test_result<-sum(MAPE_inf==TRUE)==sum(y2[MAPE_inf]==0)
+#Posiional Test
+#C1-positions of the following coincidence -- !h2==0 and y2==0
+#C2-positions of the following coincidence -- MAPE==0 and y2==0
+C1<-which(!h2==0&y2==0);C2<-which(MPE==Inf&y2==0)
+positional_result<-(sum(C1==C2))==sum(MAPE_inf)
+#Calculate non-zero MAPE
+MPEplot<-function(y,h){
+  varr<-vector()
+  threshold<-vector()
+  for(i in 1:100){
+    threshold[i]<-(sum(MAPE>0.01*(100-i)))*100/length(y)
   }
-  dcf<-apply(x, MARGIN=2, FUN=dcfs)
-  th=th-lr*dcf
-  h1=x%*%th
-  costfna[i]=(1/2*v)*sum((h1-y1)^2)
-  costfna
-  ab[i]<-(costfna[i-1]-costfna[i]>0)
-  ab<<-ab
-  ifelse(ab[i]=='FALSE', lr<-(lr/10), lr<-lr)
-  MSE=sum((y1-h1)^2)
-  MSE<<-MSE
+  #Threshold Represents Probability of Obtaining MAPE less than or equal to a certain value.
+  plot(threshold, seq(1,100), type='l', ylab='Probability', xlab='MAPEexp (%)')
+  MAPEexp<-vector()
+  b<-seq(0.001,4,0.01)
+  length(b)
+  stdev<-vector()
+  for(i in 1:length(b)){
+    m<-h[(abs(y-mean(y))<b[i])]
+    n<-y[(abs(y-mean(y))<b[i])]
+    o<-y[(abs(y-mean(y))<b[i])]
+    stdev[i]<-mean(abs(y-mean(y))/(length(o)-1))
+    z<-(100*abs(m-n)/(o))
+    z<-z[!z==Inf]
+    MAPEexp[i]<-mean(z)
+  }
+  plot(stdev,MAPEexp, type='l', xlim=c(0,0.01), xlab='Standard Deviation', ylab='MAPEexp(%)')
 }
-plot(costfna)
-plot(y1, type='l', xlim=c(5000,1000))
-points(h1, type='l', col='red')
+MPEplot(y2,h2)
+plot(y2, type='l',  xlim=c(4200,4600));points(h2, type='l', col='red')
+#Variance vs MAPEexp plot describes the relationship between variance of the mean y and y value at time & expected MAPE
+```
