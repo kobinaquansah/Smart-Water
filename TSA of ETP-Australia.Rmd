@@ -6,7 +6,7 @@ output: html_document
 # Importation and Data Cleaning -----------------------------------------------
 rm(list=ls())
 require(rio);require(pracma);require(tseries)
-df<-import("C://Users//kobin//Documents//Hourly Flowrate In.csv");
+df<-import("C://Users//kobin//Documents//Hourly Flowrate.csv");
 #Find Missing Data with a function that returns Number of NA values and their respective columns
 na.find<-function(f){
   nacolsum<-vector()
