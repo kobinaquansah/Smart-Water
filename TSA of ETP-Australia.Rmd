@@ -6,11 +6,8 @@ output: html_document
 # Importation and Data Cleaning -----------------------------------------------
 rm(list=ls())
 require(rio);require(pracma);require(tseries)
-#Correct the file directory to match location on your PC
 df<-import("C://Users//kobin//Documents//Hourly Flowrate In.csv");
-dfflowin<-import("C://Users//kobin//Documents//Hourly Flowrate In.csv")
 #Find Missing Data with a function that returns Number of NA values and their respective columns
-df[c(1:10,12,19:23),12]<-NA
 na.find<-function(f){
   nacolsum<-vector()
   for (i in 1:ncol(df)){
@@ -78,7 +75,7 @@ pmat.fill(ts_column=ts_column, precision=precision)
 #useable_row_checker = sum of values in MKA rows (2:end), since row 1 is the MKB identifier
 #useable_row_pos = positions of all rows containing at least one non-zero value, offset of 1 to deal with useable_row_checker which begins at vector position 2 but indexes at vector position 1
 ```
-#Bootstrap Using a Markov Chain. MK0 represents the previous condition, MK1 represents the condition before MK0. If MK1 is also 0, MK1 is assigned to the position before its preceding assignment. Only when an MK0 or MK1 value is fulfilled will the probability matrix be accessed to sample a potential value for the current condition. When all unfilled MK1's are fulfilled, the while loop is broken to allow for the inital MK0 to be used for bootstrapping. If either MK0 or MK1 are fulfilled, but there are no further values to sample from, sampling is performed from the condition with the least square distance
+<!--Bootstrap Using a Markov Chain. MK0 represents the previous condition, MK1 represents the condition before MK0. If MK1 is also 0, MK1 is assigned to the position before its preceding assignment. Only when an MK0 or MK1 value is fulfilled will the probability matrix be accessed to sample a potential value for the current condition. When all unfilled MK1's are fulfilled, the while loop is broken to allow for the inital MK0 to be used for bootstrapping. If either MK0 or MK1 are fulfilled, but there are no further values to sample from, sampling is performed from the condition with the least square distance. -->
 
 ```{r}
 #1.row_comp=row comparator signifying which rows in distribution matrix can contribute to       Markov Chain. i.e. contain vaules greater than 0 in their sampling vectors
