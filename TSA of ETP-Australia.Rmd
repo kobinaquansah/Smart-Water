@@ -6,8 +6,9 @@ output: html_document
 # Importation and Data Cleaning -----------------------------------------------
 rm(list=ls())
 require(rio);require(pracma);require(tseries)
-df<-import("C://Users//kobin//Documents//Hourly Flowrate.csv");
+df<-import("C://Users//kobin//Documents//Hourly Flowrate In.csv");
 #Find Missing Data with a function that returns Number of NA values and their respective columns
+df[1:10,12]<-NA
 na.find<-function(f){
   nacolsum<-vector()
   for (i in 1:ncol(df)){
@@ -22,7 +23,6 @@ na_summary_list<-list(na_col, na_sum)
 print(na_summary)
 }
 na.find(df)
-
 #Produce probability distributioin matrix for proceeding and preceding Markov Conditions. 
 #bins=vector of unique values rounded to the nearest decimal place
 #u_val=sorted unique values
@@ -41,8 +41,6 @@ pmat.create<-function(ts_column){
   u_mat<<-u_mat
 }
 pmat.create(ts_column = ts_column)
-
-
 #Set u_mat[1,1] to 100 to prevent that value from being selected as the whole of row 1 and column 1 will only be used for comparison while the rest of distribution matrix will be filled with number of movements from one condition to the next. Row 1 will correspond to initial condition and Row 2 will correspond to final condition.
 pmat.fill<-function(ts_column, precision){
   na_adjusted<-na.exclude(df)
@@ -93,7 +91,6 @@ df<-as.matrix(df[,c(11,12)])
 ts_column=2
 x<-df
 a<-vector()
-
 if(length(pos_na>0)){
 tentative_mean<-mean(x[,ts_column][!is.na(x[,ts_column])])
 condition1<-if(which(is.na(x[pos_na[1],ts_column]))==1){
@@ -105,20 +102,21 @@ condition1<-if(which(is.na(x[pos_na[1],ts_column]))==1){
     iterant<<-iterant
   }
 i=iterant-1
-sampling_positions<-vector()
-MK1<-NA
 MK0<-round(x[pos_na[i]+1,ts_column],precision)
+MK1<-NA
 jmax<-vector()
-v=0
+k=0
+sampling_positions<-vector()
+if (length(pos_na)>0){
   while(is.na(MK0)&is.na(MK1)){
     i=i+1
     while (is.na(MK0)){
       j=0
       while(is.na(MK1)){
-        v=v+1
+        k=k+1
         j=1+j
         MK1=round(x[pos_na[i]+j,ts_column],precision)
-        jmax[v]<-j
+        jmax[k]<-j
         }
       initial_vector<-u_mat[which(row_comp==MK1),2:u_length+1]
       sampling_positions<-which(initial_vector>0)
@@ -160,10 +158,8 @@ v=0
       }
     }
   }
-
-
+}
 df<-x
-
 plot(df[,ts_column], xlim=c(0,100));
 ```
 
@@ -176,13 +172,10 @@ plot(df1, type='l')
 #1.Determine whether autocorrelation or Partial Autocorrelation can be found in Time Series
 #2.Determine autocorrelations and partial autocorrelations above 70th percentile.
 #3.Determine poisitions of autocorrelated and partially autocorrelated values above 70th percentile to find their lagtimes
-
 autocorr<-acf(df1,lag.max = 100);
 pautocorr<-pacf(df1, lag.max = 100)
-predgap=24
-prob=0.5
-  
-corrsummary<-function(){
+predgap=24;prob=0.5
+corrsummary<-function(predgap,prob){
   autoqua<<-quantile(abs(autocorr$acf[predgap:100]), prob=prob)
   pautoqua<<-quantile(abs(pautocorr$acf[predgap:100]), prob=prob)
   pos1<<-which(autocorr$acf>autoqua)
@@ -195,9 +188,8 @@ corrsummary<-function(){
   pacfmat <<- pacfmat[order(pacfmat[,2], decreasing=TRUE),]
   pacfmatpos <<- pacfmat[pacfmat>predgap]
 }
-corrsummary()
-training<-65000
-testing<-90000
+corrsummary(predgap=24,prob=0.5)
+training<-65000;testing<-90000
 ```
 
 <!--TRAINING MODEL-->
@@ -209,90 +201,71 @@ testing<-90000
 #2.Iterate through the lagtimes cumulatively descending from the most autocorrelated lagtime
 #3.Find value of i which corresponds to lowest MSE
 MSE<-vector()
-
-for(i in 1:length(acfmatpos)){
-  lagsar<-head(acfmatpos,i)
-  laggedar<-matrix(ncol=length(lagsar), nrow =training)
-  for (i in 1:length(lagsar)){
+fit_ar.find<-function(training,testing){
+  for(i in 1:length(acfmatpos)){
+    lagsar<-head(acfmatpos,i)
+    laggedar<-matrix(ncol=length(lagsar), nrow =training)
+    for (i in 1:length(lagsar)){
+      laggedar[1:training,i]<-df1[lagsar[i]:(training + lagsar[i]-1)]
+    }
+  #Ensure that the target value ranges position shifts as maximum lagtime shifts to maintain a time difference of predgap hours between prediction and event
+    y1<-df1[(predgap+max(lagsar[1:i])):(training+(predgap+max(lagsar[1:i]))-1)]
+    x<-cbind(rep(1,training), laggedar)
+  #Perform linear regression analytically
+    th<-inv(t(x)%*%x)%*%(t(x)%*%y1)
+    h1<-x%*%th
+    plot(y1, type='l', xlim=c(1000,5000), xlab='reftime(h)', ylab='Hourly Flowrate (kL/s)');points(h1, type='l', col='red')
+  #Measure MSE per iteration
+    MSE[i]<-mean(abs(y1-h1))
+    }
+  min_MSE<<-which(MSE==min(MSE))
+  plot(MSE, type='l', xlab='iteration number', ylab='MSE')
+  paste('MSEmin occurs at cumulative iteration number',min_MSE)
+  lagsar<<-lagsar
+  laggedar<<-laggedar
+}
+fit_ar.find(training=training, testing=testing)
+fit_ar.train<-function(training,testing){
+  laggedar<-matrix(ncol=min_MSE, nrow =training)
+  for (i in 1:min_MSE){
     laggedar[1:training,i]<-df1[lagsar[i]:(training + lagsar[i]-1)]
   }
-  #Ensure that the target value ranges position shifts as maximum lagtime shifts to maintain a time difference of predgap hours between prediction and event
-  
-  y1<-df1[(predgap+max(lagsar[1:i])):(training+(predgap+max(lagsar[1:i]))-1)]
-  x<-cbind(rep(1,training), laggedar)
-  #Perform linear regression analytically
-  th<-inv(t(x)%*%x)%*%(t(x)%*%y1)
+  y1<<-df1[(predgap+max(lagsar[min_MSE])):(training+(predgap+max(lagsar[min_MSE]))-1)]
+  x<<-cbind(rep(1,training), laggedar)
+  th<<-inv(t(x)%*%x)%*%(t(x)%*%y1)
   h1<-x%*%th
-  plot(y1, type='l', xlim=c(1000,5000), xlab='reftime(h)', ylab='Hourly Flowrate (kL/s)');points(h1, type='l', col='red')
-  #Measure MSE per iteration
-  MSE[i]<-mean(abs(y1-h1))
+  h1<<-h1
 }
-min_MSE<-which(MSE==min(MSE))
-plot(MSE, type='l', xlab='iteration number', ylab='MSE')
-paste('MSEmin occurs at cumulative iteration number',min_MSE)
-
-laggedar<-matrix(ncol=min_MSE, nrow =training)
-for (i in 1:min_MSE){
-  laggedar[1:training,i]<-df1[lagsar[i]:(training + lagsar[i]-1)]
-}
-y1<-df1[(predgap+max(lagsar[min_MSE])):(training+(predgap+max(lagsar[min_MSE]))-1)]
-x<-cbind(rep(1,training), laggedar)
-th<-inv(t(x)%*%x)%*%(t(x)%*%y1)
-h1<-x%*%th
+fit_ar.train(training=training,testing=testing)
 ```
 <!--TESTING MODEL-->
 <!--This model will make use of the generated theta parameters along with the number of cumulative iterations to generate a hypothesis function. MSE and Mean Relative Error will be determined-->
 
 ```{r}
-laggedar<-matrix(nrow=(testing-training), ncol=min_MSE)
-for (i in 1:min_MSE){
-  laggedar[1:(testing-training),i]<-df1[(training+lagsar[i]):(testing + lagsar[i]-1)]
+ar.test<-function(){
+  laggedar<-matrix(nrow=(testing-training), ncol=min_MSE)
+  for (i in 1:min_MSE){
+    laggedar[1:(testing-training),i]<-df1[(training+lagsar[i]):(testing + lagsar[i]-1)]
+    }
+  x2<<-cbind(rep(1,(testing-training)), laggedar)
+  y2<<-df1[(predgap+max(lagsar[1:i])+training):(testing+(predgap+max(lagsar[1:i]))-1)]
+  h2<<-x2%*%th
 }
-x2<-cbind(rep(1,(testing-training)), laggedar)
-y2<-df1[(predgap+max(lagsar[1:i])+training):(testing+(predgap+max(lagsar[1:i]))-1)]
-h2<-x2%*%th
-MSE<-mean(abs(h2-y2))
-plot(y2, type='l', xlim=c(4000,5200), xlab='reftime(h)', ylab='Hourly Flowrate (kL/s)');points(h2, type='l', col='red')
-#Find Mean Relative Error
-MAPE<-(abs(h2-y2)/y2)
-
-MAPE_inf<-is.infinite(MAPE)
-#Test to confirm that all infinite values originated from a zero-denominator
-sum_test_result<-sum(MAPE_inf==TRUE)==sum(y2[MAPE_inf]==0)
-#Posiional Test
-#C1-positions of the following coincidence -- !h2==0 and y2==0
-#C2-positions of the following coincidence -- MAPE==0 and y2==0
-C1<-which(!h2==0&y2==0)
-C2<-which(MAPE==Inf&y2==0)
-positional_result<-(sum(C1==C2))==sum(MAPE_inf)
-#Calculate non-zero MAPE
-MAPE_non_zero<-mean(MAPE[!MAPE_inf])
-which(MAPE==max(MAPE[!MAPE_inf]))
-paste('positional test result', positional_result)
-paste('sum test result', sum_test_result)
-paste('non-zero MAPE is', signif(MAPE_non_zero*100,2), '%')
+ar.test()
+ar.MAPE<-function(){
+  MSE<-mean(abs(h2-y2))
+  #Find Mean Average Percentage Error
+  MAPE<<-(abs(h2-y2)/y2)
+  MAPE_inf<-is.infinite(MAPE)
+  MAPE_non_zero<-mean(MAPE[!MAPE_inf])
+  which(MAPE==max(MAPE[!MAPE_inf]))
+  paste('non-zero MAPE is', signif(MAPE_non_zero*100,2), '%')
+}
+ar.MAPE()
 ```
 
 ```{r}
-#th<-inv(t(x)%*%x)%*%(t(x)%*%y)
-#h<-x%*%th
-
-MPEfun<-function(a,b){
-  MPE<<-(abs(a-b)/b)
-}
-MPEfun(h2,y2)
-MPE_inf<-is.infinite(MPE)
-MPE_non_zero<-mean(MPE[!MPE_inf])
-paste('non-zero MAPE is', signif(MPE_non_zero*100,2), '%')
-#Test to confirm that all infinite values originated from a zero-denominator
-sum_test_result<-sum(MAPE_inf==TRUE)==sum(y2[MAPE_inf]==0)
-#Posiional Test
-#C1-positions of the following coincidence -- !h2==0 and y2==0
-#C2-positions of the following coincidence -- MAPE==0 and y2==0
-C1<-which(!h2==0&y2==0);C2<-which(MPE==Inf&y2==0)
-positional_result<-(sum(C1==C2))==sum(MAPE_inf)
-#Calculate non-zero MAPE
-MPEplot<-function(y,h){
+MPEplots<-function(y,h){
   varr<-vector()
   threshold<-vector()
   for(i in 1:100){
@@ -314,8 +287,16 @@ MPEplot<-function(y,h){
     MAPEexp[i]<-mean(z)
   }
   plot(stdev,MAPEexp, type='l', xlim=c(0,0.01), xlab='Standard Deviation', ylab='MAPEexp(%)')
+  hist(h-y, breaks=30, xlab='Residual', ylab='Residual')
+  meany<-mean(h-y)
+  stdev<-sd(h-y)
+  print(paste('mean',round(meany,3),'stdev',round(stdev,3)))
 }
-MPEplot(y2,h2)
-plot(y2, type='l',  xlim=c(4200,4600));points(h2, type='l', col='red')
+MPEplots(y2,h2)
+#Residual mean of 0 suggests occurence of mostly noise (Also occured by supported by plotted below)
+plot(y2, type='l',  xlim=c(5000,6000));points(h2, type='l', col='red')
 #Variance vs MAPEexp plot describes the relationship between variance of the mean y and y value at time & expected MAPE
+#Next steps are to include exogenous regressors (ARMAX) from 
+# i. wastewater characteristics 
+# ii. Weather forecasts (Rainfall:-mm & distance from WWTP)
 ```
