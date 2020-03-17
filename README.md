@@ -14,9 +14,9 @@ The following IDE's neet to be installed
 2. MySQL Workbench (only tested on version 8.0)
 
 ## Instructions
-1.From your File Explorer, unzip the file named "ETP_forecast.zip"
+1. From your File Explorer, unzip the file named "ETP_forecast.zip"
 
-2.Open MySQL workbench
+2. Open MySQL workbench
 
 	i.Access the MySQL Import/Export Wizard
 	
@@ -24,7 +24,7 @@ The following IDE's neet to be installed
 	
 	iii.After import is complete, open the SQL script named "FlowTransmission.csc" and run it.
 
-3.Open the R project named "ETP_TS_forecast.Rproj"
+3. Open the R project named "ETP_TS_forecast.Rproj"
 
 	i.Navigate to Session -> Set Working Directory -> To Project Directory
 	
@@ -45,4 +45,3 @@ NB. You will be asked for the following information by the ODBC to create connec
 	iii.Password
 	
 	iv.Port
-
