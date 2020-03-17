@@ -4,7 +4,7 @@ This project seeks to investigate the production of smartwater systems using dif
 
 # Project Information
 
-The aim of this branch was to create a codebase on top of which a Time Series Forecasting model can be implemented with further improvements. The data in question is the hourly flow rate at Eastern Treatment Plant, Melbourne, Australia from 2009 to 2018. Box - Jenkins (specifically AR) was selected.
+	The aim of this branch was to create a codebase on top of which a Time Series Forecasting model can be implemented with further improvements. The data in question is the hourly flow rate at Eastern Treatment Plant, Melbourne, Australia from 2009 to 2018. Box - Jenkins (specifically AR) was selected.
 
 # Installation
 
