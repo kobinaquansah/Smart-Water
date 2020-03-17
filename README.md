@@ -15,19 +15,34 @@ The following IDE's neet to be installed
 
 ## Instructions
 1.From your File Explorer, unzip the file named "ETP_forecast.zip"
+
 2.Open MySQL workbench
+
 	i.Access the MySQL Import/Export Wizard
+	
 	ii.Import the file named "hourly_flow_in.csv". Save as "hourly_flow_in" with UTF-8 encoding.
+	
 	iii.After import is complete, open the SQL script named "FlowTransmission.csc" and run it.
+
 3.Open the R project named "ETP_TS_forecast.Rproj"
+
 	i.Navigate to Session -> Set Working Directory -> To Project Directory
-	ii.From the "Files" tab/files pane (usually in lower right window), open 	"database_connector.Rmd","ar_script.R" and "arima_script.R"
+	
+	ii.From the "Files" tab/files pane (usually in lower right window), open "database_connector.Rmd",
+	"ar_script.R" and "arima_script.R"
+	
 	iii. Always run database_connector.Rmd first
+	
 	iv. You are now ready to run "ar_script.R" and/or "arima_script.R"
 	
 NB. You will be asked for the following information by the ODBC to create connection between R and the server
+	using the following information
+	
 	i.Server Address
+	
 	ii.Username
+	
 	iii.Password
+	
 	iv.Port
 
