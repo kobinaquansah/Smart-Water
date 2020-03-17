@@ -6,14 +6,14 @@ This project seeks to investigate the production of smartwater systems using dif
 The aim of this branch was to create a codebase on top of which a Time Series Forecasting model can be implemented with further improvements. The data in question is the hourly inlet wastewater flow rate at Eastern Treatment Plant, Melbourne, Australia from 2009 to 2018. The Box - Jenkins (specifically AR) model was selected.
 
 # Download
-Open "ETP_TS_forecast.zip" and click on "Raw"
+Open "ETP_TS_forecast.zip" and click on "Download"
 
 # Installation
 
 ## Dependencies
 The following IDE's need to be installed:
-	1. RStudio (only tested on version 3.6)
-	2. MySQL Workbench (only tested on version 8.0)
+1. RStudio (only tested on version 3.6)
+2. MySQL Workbench (only tested on version 8.0)
 
 ## Instructions
 1. From your File Explorer, unzip the file named "ETP_forecast.zip"
