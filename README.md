@@ -28,12 +28,12 @@ The following IDE's need to be installed:
 
 3. Open the R project named "ETP_TS_forecast.Rproj"
 
-	i.Navigate to Session -> Set Working Directory -> To Project Directory
+	i. Navigate to Session -> Set Working Directory -> To Project Directory
 	
-	ii.From the "Files" tab/files pane (usually in lower right window), open "database_connector.Rmd",
-	"ar_script.R" and "arima_script.R"
+	ii. From the "Files" tab/files pane (usually in lower right window), open "database_connector.Rmd",
+	    "ar_script.R" and "arima_script.R"
 	
-	iii. Always run database_connector.Rmd first
+	iii. Always run "database_connector.Rmd" first
 	
 	iv. You are now ready to run "ar_script.R" and/or "arima_script.R"
 	
