@@ -8,11 +8,12 @@ The aim of this branch was to create a codebase on top of which a Time Series Fo
 
 # Installation
 
+	# Dependencies
 The following IDE's neet to be installed
 1. RStudio (only tested on version 3.6)
 2. MySQL Workbench (only tested on version 8.0)
 
-Instructions.
+	# Instructions
 1.From your File Explorer, unzip the file named "ETP_forecast.zip"
 2.Open MySQL workbench
 	i.Access the MySQL Import/Export Wizard
