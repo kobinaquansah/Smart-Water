@@ -1,9 +1,31 @@
 # Smart-Water
 Using Machine Learning Models  on Water Treatment
-This project seeks to investigate the production of smartwater systems using different energy and water saving mechanisms while preserving water supply, treatment and disposal effectiveness. The dataset named "Hourly Flowrate In.csv" consists of the volume of sewage pumped through the "Eastern Treatment Plant - Melbourne, Australia" on an hourly basis. Data consists of roughly 10 years of data. Training and testing of an AR time series model has been performed on the dataset, but I am yet to perform cross validation.  To run this code, place "Hourly Flowrate In.csv" in any location on your PC. Find the directory location and paste into line 8 of the Markdown script. Run and enjoy.
+This project seeks to investigate the production of smartwater systems using different energy and water saving mechanisms while preserving water supply, treatment and disposal effectiveness. The dataset named "hourly_in.csv" consists of the volume of sewage pumped through the "Eastern Treatment Plant - Melbourne, Australia" on an hourly basis.
+
+PROJECT INFORMATION
+The aim of this branch was to create a codebase on top of which a Time Series Forecasting model can be implemented with further improvements. The data in question is the hourly flow rate at Eastern Treatment Plant, Melbourne, Australia from 2009 to 2018. Box - Jenkins (specifically AR) was selected.
 
 
-The Ammonium Concentration Prediction uses Linear Regression to predict ammonium comcentrations in Ukranian river water. Ammonium ions concentration is measured in mg/cub. dm (ie milligrams in the cubic decimeter).The maximum permissible value of Ammonium ions concentration (NH4) in Ukraine is 0.5 mg/cub.dm. Id - the unique id of a given monthly averaged data; target - a values of monthly 
-averaged data of NH4 in target station, mg/cub. dm; 1-7 - a values of monthly averaged data of NH4 in stations 1-7 (in seven stations located from the target station upstream), mg/cub. dm. This dataset can be used to reduce the number of required sensors and preemtively predict ammonium concentrations upstream.
+INSTALLATION
+The following IDE's neet to be installed
+1. RStudio (only tested on version 3.6)
+2. MySQL Workbench (only tested on version 8.0)
 
+Instructions.
+1.From your File Explorer, unzip the file named "ETP_forecast.zip"
+2.Open MySQL workbench
+	i.Access the MySQL Import/Export Wizard
+	ii.Import the file named "hourly_flow_in.csv". Save as "hourly_flow_in" with UTF-8 encoding.
+	iii.After import is complete, open the SQL script named "FlowTransmission.csc" and run it.
+3.Open the R project named "ETP_TS_forecast.Rproj"
+	i.Navigate to Session -> Set Working Directory -> To Project Directory
+	ii.From the "Files" tab/files pane (usually in lower right window), open 	"database_connector.Rmd","ar_script.R" and "arima_script.R"
+	iii. Always run database_connector.Rmd first
+	iv. You are now ready to run "ar_script.R" and/or "arima_script.R"
+	
+NB. You will be asked for the following information by the ODBC to create connection between R and the server
+	i.Server Address
+	ii.Username
+	iii.Password
+	iv.Port
 
